@@ -22,6 +22,22 @@ const CURRENT_ID_STORAGE_KEY = "cf_ai_chat_current_id_v1";
 // Default system baseline greeting
 const DEFAULT_WELCOME = "Hello! I'm an LLM chat app powered by Cloudflare Workers AI. How can I help you today?";
 
+// Configure Markdown Parser to safely format hyperlinks & open them in separate windows
+if (window.marked) {
+marked.setOptions({
+breaks: true,
+gfm: true
+});
+
+// Custom renderer override to force external tabs for hyperlinks
+const renderer = new marked.Renderer();
+renderer.link = function({ href, title, text }) {
+const titleAttr = title ? ` title="${title}"` : '';
+return `<a href="${href}"${titleAttr} target="_blank" rel="noopener noreferrer">${text}</a>`;
+};
+marked.use({ renderer });
+}
+
 // Application Memory State Structure
 let chatSessions = JSON.parse(localStorage.getItem(SESSIONS_STORAGE_KEY)) || [];
 let currentSessionId = localStorage.getItem(CURRENT_ID_STORAGE_KEY) || null;
@@ -31,66 +47,66 @@ let isProcessing = false;
  * Returns the currently active chat session object
  */
 function getCurrentSession() {
-	return chatSessions.find(s => s.id === currentSessionId);
+return chatSessions.find(s => s.id === currentSessionId);
 }
 
 /**
  * Generates an entirely fresh active conversation session tracking frame
  */
 function createNewSession() {
-	const newId = "session_" + Date.now();
-	const newSession = {
-		id: newId,
-		title: "New Chat Session",
-		timestamp: new Date().toLocaleDateString(),
-		history: [
-			{ role: "assistant", content: DEFAULT_WELCOME }
-		]
-	};
-	chatSessions.unshift(newSession); // Push to the top of the history list
-	currentSessionId = newId;
-	saveState();
-	renderCurrentChat();
+const newId = "session_" + Date.now();
+const newSession = {
+id: newId,
+title: "New Chat Session",
+timestamp: new Date().toLocaleDateString(),
+history: [
+{ role: "assistant", content: DEFAULT_WELCOME }
+]
+};
+chatSessions.unshift(newSession); // Push to the top of the history list
+currentSessionId = newId;
+saveState();
+renderCurrentChat();
 }
 
 /**
  * Saves current app states into permanent local storage vectors
  */
 function saveState() {
-	localStorage.setItem(SESSIONS_STORAGE_KEY, JSON.stringify(chatSessions));
-	localStorage.setItem(CURRENT_ID_STORAGE_KEY, currentSessionId);
+localStorage.setItem(SESSIONS_STORAGE_KEY, JSON.stringify(chatSessions));
+localStorage.setItem(CURRENT_ID_STORAGE_KEY, currentSessionId);
 }
 
 /**
  * Renders the active conversation message history into the main window view
  */
 function renderCurrentChat() {
-	// Wipe out old message element layouts cleanly
-	const existingMsgs = chatMessages.querySelectorAll(".message");
-	existingMsgs.forEach(el => el.remove());
+// Wipe out old message element layouts cleanly
+const existingMsgs = chatMessages.querySelectorAll(".message");
+existingMsgs.forEach(el => el.remove());
 
-	const session = getCurrentSession();
-	if (!session) return;
+const session = getCurrentSession();
+if (!session) return;
 
-	session.history.forEach(msg => {
-		if (msg.role !== "system") {
-			addMessageToChatUi(msg.role, msg.content);
-		}
-	});
+session.history.forEach(msg => {
+if (msg.role !== "system") {
+addMessageToChatUi(msg.role, msg.content);
+}
+});
 }
 
 // Auto-resize textarea as user types
 userInput.addEventListener("input", function () {
-	this.style.height = "auto";
-	this.style.height = this.scrollHeight + "px";
+this.style.height = "auto";
+this.style.height = this.scrollHeight + "px";
 });
 
 // Send message on Enter (without Shift)
 userInput.addEventListener("keydown", function (e) {
-	if (e.key === "Enter" && !e.shiftKey) {
-		e.preventDefault();
-		sendMessage();
-	}
+if (e.key === "Enter" && !e.shiftKey) {
+e.preventDefault();
+sendMessage();
+}
 });
 
 // Action Event Wireups
@@ -98,45 +114,45 @@ sendButton.addEventListener("click", sendMessage);
 
 // "New Chat" mimics GPT: Saves what you have, switches context cleanly
 newChatButton.addEventListener("click", () => {
-	const current = getCurrentSession();
-	// Only create a new session if the current one has actual user interactions
-	if (current && current.history.length <= 1) {
-		alert("You are already in a clean new chat window.");
-		return;
-	}
-	createNewSession();
+const current = getCurrentSession();
+// Only create a new session if the current one has actual user interactions
+if (current && current.history.length <= 1) {
+alert("You are already in a clean new chat window.");
+return;
+}
+createNewSession();
 });
 
 // Build the Session Sidebar List View
 historyButton.addEventListener("click", () => {
-	historyLogBody.innerHTML = "";
+historyLogBody.innerHTML = "";
 
-	if (chatSessions.length === 0) {
-		historyLogBody.innerHTML = `<p style="color: var(--text-light); text-align:center; padding:1rem;">No past chat rooms recorded.</p>`;
-	} else {
-		chatSessions.forEach(session => {
-			const item = document.createElement("div");
-			item.className = "history-session-item";
-			// Grab the first user message as the title preview if it exists
-			const titleText = session.title;
-			
-			item.innerHTML = `
-				<div class="session-title">${escapeHtml(titleText)}</div>
-				<div class="session-date">${session.timestamp}</div>
-			`;
-			
-			// Switch chat instance on click
-			item.addEventListener("click", () => {
-				currentSessionId = session.id;
-				saveState();
-				renderCurrentChat();
-				historyModal.classList.remove("active");
-			});
+if (chatSessions.length === 0) {
+historyLogBody.innerHTML = `<p style="color: var(--text-light); text-align:center; padding:1rem;">No past chat rooms recorded.</p>`;
+} else {
+chatSessions.forEach(session => {
+const item = document.createElement("div");
+item.className = "history-session-item";
+// Grab the first user message as the title preview if it exists
+const titleText = session.title;
 
-			historyLogBody.appendChild(item);
-		});
-	}
-	historyModal.classList.add("active");
+item.innerHTML = `
+<div class="session-title">${escapeHtml(titleText)}</div>
+<div class="session-date">${session.timestamp}</div>
+`;
+
+// Switch chat instance on click
+item.addEventListener("click", () => {
+currentSessionId = session.id;
+saveState();
+renderCurrentChat();
+historyModal.classList.remove("active");
+});
+
+historyLogBody.appendChild(item);
+});
+}
+historyModal.classList.add("active");
 });
 
 closeHistory.addEventListener("click", () => historyModal.classList.remove("active"));
@@ -146,149 +162,165 @@ window.addEventListener("click", (e) => { if (e.target === historyModal) history
  * Handles communication with backend and manages history states
  */
 async function sendMessage() {
-	const message = userInput.value.trim();
-	if (message === "" || isProcessing) return;
+const message = userInput.value.trim();
+if (message === "" || isProcessing) return;
 
-	let session = getCurrentSession();
-	if (!session) {
-		createNewSession();
-		session = getCurrentSession();
-	}
+let session = getCurrentSession();
+if (!session) {
+createNewSession();
+session = getCurrentSession();
+}
 
-	isProcessing = true;
-	userInput.disabled = true;
-	sendButton.disabled = true;
+isProcessing = true;
+userInput.disabled = true;
+sendButton.disabled = true;
 
-	// Append layouts
-	addMessageToChatUi("user", message);
-	session.history.push({ role: "user", content: message });
+// Append layouts
+addMessageToChatUi("user", message);
+session.history.push({ role: "user", content: message });
 
-	// Auto update title based on first user message topic
-	if (session.title === "New Chat Session" || session.history.length <= 3) {
-		session.title = message.length > 30 ? message.substring(0, 30) + "..." : message;
-	}
-	saveState();
+// Auto update title based on first user message topic
+if (session.title === "New Chat Session" || session.history.length <= 3) {
+session.title = message.length > 30 ? message.substring(0, 30) + "..." : message;
+}
+saveState();
 
-	userInput.value = "";
-	userInput.style.height = "auto";
-	typingIndicator.classList.add("visible");
-	scrollToBottom();
+userInput.value = "";
+userInput.style.height = "auto";
+typingIndicator.classList.add("visible");
+scrollToBottom();
 
-	let responseText = "";
-	let assistantTextEl = null;
+let responseText = "";
+let assistantTextEl = null;
 
-	try {
-		const response = await fetch("/api/chat", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ messages: session.history }),
-		});
+try {
+const response = await fetch("/api/chat", {
+method: "POST",
+headers: { "Content-Type": "application/json" },
+body: JSON.stringify({ messages: session.history }),
+});
 
-		if (!response.ok) throw new Error("Failed response state.");
-		if (!response.body) throw new Error("Null response payload stream.");
+if (!response.ok) throw new Error("Failed response state.");
+if (!response.body) throw new Error("Null response payload stream.");
 
-		typingIndicator.classList.remove("visible");
+typingIndicator.classList.remove("visible");
 
-		const assistantMessageEl = document.createElement("div");
-		assistantMessageEl.className = "message assistant-message";
-		assistantMessageEl.innerHTML = "<p></p>";
-		chatMessages.appendChild(assistantMessageEl);
-		assistantTextEl = assistantMessageEl.querySelector("p");
+const assistantMessageEl = document.createElement("div");
+assistantMessageEl.className = "message assistant-message";
+assistantMessageEl.innerHTML = '<div class="msg-content"></div>';
+chatMessages.appendChild(assistantMessageEl);
+assistantTextEl = assistantMessageEl.querySelector(".msg-content");
 
-		const reader = response.body.getReader();
-		const decoder = new TextDecoder();
-		let buffer = "";
+const reader = response.body.getReader();
+const decoder = new TextDecoder();
+let buffer = "";
 
-		const processEvents = (events) => {
-			for (const data of events) {
-				if (data === "[DONE]") return true;
-				try {
-					const jsonData = JSON.parse(data);
-					const content = jsonData.response || jsonData.choices?.[0]?.delta?.content || "";
-					if (content) {
-						responseText += content;
-						assistantTextEl.textContent = responseText; 
-						scrollToBottom();
-					}
-				} catch (e) {
-					console.error("SSE parse error", e);
-				}
-			}
-			return false;
-		};
+const processEvents = (events) => {
+for (const data of events) {
+if (data === "[DONE]") return true;
+try {
+const jsonData = JSON.parse(data);
+const content = jsonData.response || jsonData.choices?.[0]?.delta?.content || "";
+if (content) {
+responseText += content;
+// Convert streaming Markdown into rich HTML with Hyperlinks
+if (window.marked) {
+assistantTextEl.innerHTML = marked.parse(responseText);
+} else {
+assistantTextEl.textContent = responseText;
+}
+scrollToBottom();
+}
+} catch (e) {
+console.error("SSE parse error", e);
+}
+}
+return false;
+};
 
-		while (true) {
-			const { done, value } = await reader.read();
-			if (done) {
-				const parsed = consumeSseEvents(buffer + "\n\n");
-				processEvents(parsed.events);
-				break;
-			}
-			buffer += decoder.decode(value, { stream: true });
-			const parsed = consumeSseEvents(buffer);
-			buffer = parsed.buffer;
-			if (processEvents(parsed.events)) break;
-		}
+while (true) {
+const { done, value } = await reader.read();
+if (done) {
+const parsed = consumeSseEvents(buffer + "\n\n");
+processEvents(parsed.events);
+break;
+}
+buffer += decoder.decode(value, { stream: true });
+const parsed = consumeSseEvents(buffer);
+buffer = parsed.buffer;
+if (processEvents(parsed.events)) break;
+}
 
-		if (responseText.trim().length > 0) {
-			session.history.push({ role: "assistant", content: responseText });
-			saveState();
-		}
+if (responseText.trim().length > 0) {
+session.history.push({ role: "assistant", content: responseText });
+saveState();
+}
 
-	} catch (error) {
-		console.error("Chat Execution Error:", error);
-		typingIndicator.classList.remove("visible");
-		addMessageToChatUi("assistant", "Sorry, there was an error processing your request.");
-	} finally {
-		isProcessing = false;
-		userInput.disabled = false;
-		sendButton.disabled = false;
-		userInput.focus();
-	}
+} catch (error) {
+console.error("Chat Execution Error:", error);
+typingIndicator.classList.remove("visible");
+addMessageToChatUi("assistant", "Sorry, there was an error processing your request.");
+} finally {
+isProcessing = false;
+userInput.disabled = false;
+sendButton.disabled = false;
+userInput.focus();
+}
 }
 
 function addMessageToChatUi(role, content) {
-	const messageEl = document.createElement("div");
-	messageEl.className = `message ${role}-message`;
-	messageEl.innerHTML = `<p></p>`;
-	messageEl.querySelector("p").textContent = content; 
-	chatMessages.insertBefore(messageEl, typingIndicator);
-	scrollToBottom();
+const messageEl = document.createElement("div");
+messageEl.className = `message ${role}-message`;
+messageEl.innerHTML = '<div class="msg-content"></div>';
+
+const contentContainer = messageEl.querySelector(".msg-content");
+
+// Ensure hyperlinks render cleanly using Marked for assistant responses or structural entries
+if (window.marked && role === "assistant") {
+contentContainer.innerHTML = marked.parse(content);
+} else {
+// Users don't usually send markdown, escape natively to prevent XSS injection injection points
+contentContainer.textContent = content;
+}
+
+chatMessages.insertBefore(messageEl, typingIndicator);
+scrollToBottom();
 }
 
 function scrollToBottom() {
-	chatMessages.scrollTop = chatMessages.scrollHeight;
+chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
 function consumeSseEvents(buffer) {
-	let normalized = buffer.replace(/\r/g, "");
-	const events = [];
-	let eventEndIndex;
-	while ((eventEndIndex = normalized.indexOf("\n\n")) !== -1) {
-		const rawEvent = normalized.slice(0, eventEndIndex);
-		normalized = normalized.slice(eventEndIndex + 2);
-		const lines = rawEvent.split("\n");
-		const dataLines = [];
-		for (const line of lines) {
-			if (line.startsWith("data:")) dataLines.push(line.slice(5).trimStart());
-		}
-		if (dataLines.length === 0) continue;
-		events.push(dataLines.join("\n"));
-	}
-	return { events, buffer: normalized };
+let normalized = buffer.replace(/\r/g, "");
+const events = [];
+let eventEndIndex;
+while ((eventEndIndex = normalized.indexOf("\n\n")) !== -1) {
+const rawEvent = normalized.slice(0, eventEndIndex);
+normalized = normalized.slice(eventEndIndex + 2);
+const lines = rawEvent.split("\n");
+const dataLines = [];
+for (const line of lines) {
+if (line.startsWith("data:")) dataLines.push(line.slice(5).trimStart());
+}
+if (dataLines.length === 0) continue;
+events.push(dataLines.join("\n"));
+}
+return { events, buffer: normalized };
 }
 
+// Standard helper routine to drop character bindings from template names safely
 function escapeHtml(str) {
-	return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
 
 // App Initialization Cycle Setup
 if (!currentSessionId || !getCurrentSession()) {
-	if (chatSessions.length > 0) {
-		currentSessionId = chatSessions[0].id;
-	} else {
-		createNewSession();
-	}
+if (chatSessions.length > 0) {
+currentSessionId = chatSessions[0].id;
+} else {
+createNewSession();
+}
 }
 saveState();
 renderCurrentChat();
