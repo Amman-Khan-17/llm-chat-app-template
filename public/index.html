@@ -4,6 +4,7 @@
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>LLM Chat App</title>
+		<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 		<style>
 			:root {
 				--primary-color: #f6821f;
@@ -103,10 +104,31 @@
 				box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 			}
 
-			.message p {
-				white-space: pre-line;
-				margin: 0;
+			/* Replaced white-space: pre-line to support Markdown blocks properly */
+			.message .msg-content {
 				overflow-wrap: break-word;
+			}
+
+			.message .msg-content p {
+				margin-bottom: 0.5rem;
+			}
+			.message .msg-content p:last-child {
+				margin-bottom: 0;
+			}
+
+			/* Style links generated inside AI/User text content */
+			.message .msg-content a {
+				color: var(--primary-hover);
+				text-decoration: underline;
+				font-weight: 500;
+			}
+			.message .msg-content a:hover {
+				color: #c0392b;
+			}
+
+			.message .msg-content ul, .message .msg-content ol {
+				margin-left: 1.25rem;
+				margin-bottom: 0.5rem;
 			}
 
 			.user-message {
